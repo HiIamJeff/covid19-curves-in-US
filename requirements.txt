@@ -19,5 +19,6 @@ us==2.0.2
 beautifulsoup4==4.9.0
 requests==2.23.0
 numpy==1.18.1
+xlrd==1.2.0
 gunicorn==19.10.0
 
