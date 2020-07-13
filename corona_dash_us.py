@@ -182,7 +182,7 @@ case_array_std_row = standardized_row(case_array)
 df_case_std_row = pd.DataFrame(case_array_std_row, index=state_list)
 
 ## other info
-current_date = date_list[-1]
+current_date = date_list[-1].strftime('%Y/%m/%d')
 
 #### Alarm function
 # find out which states break their state records in the last 5 days (meaning highly dangerous states!)
@@ -236,7 +236,7 @@ app.layout = html.Div([
             dbc.Col([
                 html.Div(
                     'Spot the Curves in US',
-                    style={'font-size': '26px'}
+                    style={'font-size': '26px', 'font-style': 'bold'}
                 ),
                 html.Div([
                     html.Div('The Better Overview of COVID-19 in Each State',
@@ -248,10 +248,9 @@ app.layout = html.Div([
                 dcc.Markdown(
                     '''
                 To better understand the status of each state in the US, this dashboard shows overview of state-level
-                information (Heat Map and Choropleth Map) and individual comparison between self-selected states.\n\n
-                
+                information (Heat Map and Choropleth Map) and individual comparison between self-selected states.
                 The major metrics include:
-                - ```7-Day Moving Average```: A series of averages of daily increase in cases across the time \n
+                - ```7-Day Moving Average```: A series of averages of daily increase in cases across the time 
                 - ```Phase```: The phase of the Coronavirus restrictions issued by each state government (defined by
                 New York Times)
                 '''
@@ -274,7 +273,7 @@ app.layout = html.Div([
             ),
             dbc.Col([
                 html.Div([
-                    'Pick states, generate and compare the curves!',
+                    'Pick the states and compare the curves! (The distribution of daily increase in each state)',
                     dropdown_function_state, ], style={"margin-top": "10px"}),
                 # html.Div(dcc.Markdown('123123123')),
                 dbc.Button('Submit', id='button', style={"margin-top": "5px"}),
@@ -287,6 +286,19 @@ app.layout = html.Div([
                     dcc.Graph(id='output-graph1', animate=None)
                 ),
             ]),
+        ], ),
+        dbc.Row([
+            dbc.Col([
+                html.Div(
+                    dcc.Markdown(
+                        '''
+                        The State-level
+        
+                    '''
+                    ),
+                    style={'font-size': '12px', 'color': 'grey'}
+                ), ], width=5
+            ),
         ]),
         dbc.Row([
             dbc.Col([
@@ -361,7 +373,7 @@ def create_real_map():
     ))
 
     fig.update_layout(
-        title={'text': 'Latest Date Increase',
+        title={'text': f'Latest Daily Information({current_date})',
                # "yref": "paper",
                'y': 0.98,
                'x': 0.01,
@@ -398,20 +410,22 @@ def create_trend_line(df, selected_state_list):
     fig = go.Figure()
     fig.layout.template = 'ggplot2'
     for i, c in enumerate(selected_state_list):
-        fig.add_trace(go.Scatter(x=date_list, y=df.loc[c].values,
+        fig.add_trace(go.Scatter(x=date_list, y=df.loc[c].values*100,
                                  mode='lines',
                                  # line_shape='spline',
                                  name=c,
                                  line={'color': color_m[i]},
                                  # hoverinfo="y+name",
-                                 hovertemplate='(%{x}, <b>%{y:.3f}</b>)<extra></extra>', ))
+                                 hovertemplate='%{x}: <b>%{y:.0f}%</b><extra></extra>', ))
+        # '{:.0f}%'.format(df.loc[c]*100)
+        # '%{x}: <b>%{y:.3f}</b>)<extra></extra>'
         fig.add_trace(go.Scatter(
             x=[date_list[-1]],
-            y=[df.loc[c].values[-1]],
+            y=[df.loc[c].values[-1]*100],
             name=c + ' endpoint',
             mode='markers',
             marker={'color': color_m[i], 'size': 10},
-            hovertemplate='(%{x}, <b>%{y:.3f}</b>)<extra></extra>',
+            hovertemplate='%{x}: <b>%{y:.0f}%</b><extra></extra>',
             showlegend=False,
 
         ))
@@ -428,12 +442,12 @@ def create_trend_line(df, selected_state_list):
             },
         xaxis={
             'title_text': '',
+            # 'tickformat': '%b',
             'tickmode': 'array',
             'ticks': 'outside',
             'tickcolor': '#F7FBFE',
             'title_standoff': 15,
-            'nticks': 7,
-            'showgrid': False,
+            'nticks': 4,
             'showline': True,
             'showgrid': False,
             'showticklabels': True,
