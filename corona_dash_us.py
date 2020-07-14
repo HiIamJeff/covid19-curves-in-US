@@ -184,6 +184,29 @@ df_case_std_row = pd.DataFrame(case_array_std_row, index=state_list)
 ## other info
 current_date = date_list[-1].strftime('%Y/%m/%d')
 
+####
+def case_data_process_tt(df_case_pop):
+    ## rank by higest cases date
+    sort_state_list = df_case_pop.idxmax().sort_values().index
+
+    ## cases data
+    case_array = np.array([df_case_pop[state] for state in sort_state_list])
+
+    ## scale with all states (find the smallest daily increase and biggest daily increase; use this as scale)
+    # max: 590.443, min: 0
+    def standardized_all(array):
+        return (array - np.min(array, axis=0)) / np.ptp(array, axis=None)
+
+    case_array_std = standardized_all(case_array)  # max: 590.443, min: 0
+
+    ## date
+    date_list = list(dict.fromkeys(df_case_pop.index))  # check!
+
+    ## state
+    state_list = sort_state_list
+    return case_array, case_array_std, date_list, state_list
+
+
 #### Alarm function
 # find out which states break their state records in the last 5 days (meaning highly dangerous states!)
 def alarm_state_list():
@@ -281,6 +304,23 @@ app.layout = html.Div([
             ], width=7), ],
         ),
         dbc.Row([
+            dbc.Col(html.H5('COVID-19 New Cases per 1M Resident per Day', style={'font-style': 'bold'}), width=5
+            ),
+            dbc.Col([
+                html.Div(
+                    dbc.Button('Alphabetical', id='button_alpha', outline=True, color="primary", style={"margin-top": "5px"}),
+                    style={'font-size': '12px', 'color': 'grey'}
+                ),
+            ],  width={"size": 1.2, "order": 1, "offset": 0}
+            ),
+            dbc.Col([
+                html.Div(
+                    dbc.Button('Rank', id='button_order', outline=True, color="primary", style={"margin-top": "5px", }),
+                    style={'font-size': '12px', 'color': 'grey',},
+                ), ], width={"size": 1, "order": 2, "offset": 0}
+            ),
+        ], align="center", ),
+        dbc.Row([
             dbc.Col([
                 html.Div(
                     dcc.Graph(id='output-graph1', animate=None)
@@ -288,18 +328,23 @@ app.layout = html.Div([
             ]),
         ], ),
         dbc.Row([
+            dbc.Col(html.H5('Latest Daily Information Map', style={'font-style': 'bold'}), width=5
+                    ),
             dbc.Col([
                 html.Div(
-                    dcc.Markdown(
-                        '''
-                        The State-level
-        
-                    '''
-                    ),
+                    dbc.Button('info', id='button_info', outline=True, color="primary",
+                               style={"margin-top": "5px"}),
                     style={'font-size': '12px', 'color': 'grey'}
-                ), ], width=5
+                ),
+            ], width={"size": 1.2, "order": 1, "offset": 0}
             ),
-        ]),
+            dbc.Col([
+                html.Div(
+                    dbc.Button('phase', id='button_phase', outline=True, color="primary", style={"margin-top": "5px", }),
+                    style={'font-size': '12px', 'color': 'grey', },
+                ), ], width={"size": 1, "order": 2, "offset": 0}
+            ),
+        ], align="center", ),
         dbc.Row([
             dbc.Col([
                 html.Div(
@@ -319,7 +364,7 @@ app.layout = html.Div([
 
 #### Plotting function ####
 
-def create_case_heatmap():
+def create_case_heatmap(case_array, case_array_std, date_list, state_list):
     fig = go.Figure(data=go.Heatmap(
         z=case_array_std,
         x=date_list,
@@ -334,7 +379,8 @@ def create_case_heatmap():
     ))
 
     fig.update_layout(
-        title={'text': 'COVID-19 New Cases per 1M Resident per Day',
+        title={'text': '',
+               # COVID - 19 New Cases per 1M Resident per Day
                # "yref": "paper",
                'y': 1,
                'x': 0.01,
@@ -348,7 +394,7 @@ def create_case_heatmap():
             'autoexpand': True,
             'l': 5,
             'r': 2,
-            't': 30,
+            't': 15,
             'b': 5,
         },
         # autosize=False,
@@ -373,7 +419,7 @@ def create_real_map():
     ))
 
     fig.update_layout(
-        title={'text': f'Latest Daily Information({current_date})',
+        title={'text': '', # f'Latest Daily Information({current_date})'
                # "yref": "paper",
                'y': 0.98,
                'x': 0.01,
@@ -393,7 +439,7 @@ def create_real_map():
             # 'autoexpand': True,
             'l': 0,
             'r': 0,
-            't': 20,
+            't': 10, #20
             'b': 10,
         },
         # colorbar={'x':1},
@@ -539,19 +585,23 @@ def create_trend_line(df, selected_state_list):
 
 @app.callback(
     Output(component_id='output-graph1', component_property='figure'),
-    # [Input('button1', 'n_clicks'), Input('button2', 'n_clicks')],
-    [Input('button', 'n_clicks')],
-    [State(component_id='state_selection', component_property='value')],
+    [Input('button_alpha', 'n_clicks'), Input('button_order', 'n_clicks')],
+    # [Input('button', 'n_clicks')],
+    # [State(component_id='state_selection', component_property='value')],
 )
 
-def goplot1(button, state_selection):
-    # make sure it won't generate blank plot by itself and show error
-    if not state_selection:
-        return no_update  # This is prevent the web run the function without any input
+def goplot1(button_alpha, button_order):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'button_order' in changed_id:
+        case_array, case_array_std, date_list, state_list = case_data_process_tt(df_case_pop)
+        output1 = create_case_heatmap(case_array, case_array_std, date_list, state_list)
+    elif 'button_alpha' in changed_id:
+        case_array, case_array_std, date_list, state_list = case_data_process(df_case_pop)
+        output1 = create_case_heatmap(case_array, case_array_std, date_list, state_list)
     else:
-        output1 = create_case_heatmap()
+        case_array, case_array_std, date_list, state_list = case_data_process_tt(df_case_pop)
+        output1 = create_case_heatmap(case_array, case_array_std, date_list, state_list)
     return output1
-
 
 @app.callback(
     Output(component_id='output-graph2', component_property='figure'),
