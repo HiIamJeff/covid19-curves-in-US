@@ -308,14 +308,14 @@ app.layout = html.Div([
             ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Alphabetical', id='button_alpha', outline=True, color="primary", style={"margin-top": "5px"}),
+                    dbc.Button('Alphabetical', id='button_alpha', outline=True, color="primary", style={}),
                     style={'font-size': '12px', 'color': 'grey'}
                 ),
             ],  width={"size": 1.2, "order": 1, "offset": 0}
             ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Rank', id='button_order', outline=True, color="primary", style={"margin-top": "5px", }),
+                    dbc.Button('Rank', id='button_order', outline=True, color="primary", style={}),
                     style={'font-size': '12px', 'color': 'grey',},
                 ), ], width={"size": 1, "order": 2, "offset": 0}
             ),
@@ -328,23 +328,17 @@ app.layout = html.Div([
             ]),
         ], ),
         dbc.Row([
-            dbc.Col(html.H5('Latest Daily Information Map', style={'font-style': 'bold'}), width=5
+            dbc.Col(html.H5('Latest Daily Information Map', style={'font-style': 'bold'}), width=3.5
                     ),
-            dbc.Col([
-                html.Div(
-                    dbc.Button('info', id='button_info', outline=True, color="primary",
-                               style={"margin-top": "5px"}),
-                    style={'font-size': '12px', 'color': 'grey'}
-                ),
-            ], width={"size": 1.2, "order": 1, "offset": 0}
+            dbc.Col(
+                dbc.Button('Info Map', id='button_info', outline=True, color="primary",
+                           style={"margin-left": "20px"}), width=1.2
             ),
-            dbc.Col([
-                html.Div(
-                    dbc.Button('phase', id='button_phase', outline=True, color="primary", style={"margin-top": "5px", }),
-                    style={'font-size': '12px', 'color': 'grey', },
-                ), ], width={"size": 1, "order": 2, "offset": 0}
-            ),
-        ], align="center", ),
+            dbc.Col(
+                dbc.Button('Phase Map', id='button_phase', outline=True, color="primary",
+                           style={"margin-left": "20px"}),
+                width=1.2),
+        ], justify="start", align="center",),
         dbc.Row([
             dbc.Col([
                 html.Div(
