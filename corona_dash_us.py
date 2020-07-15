@@ -278,7 +278,7 @@ app.layout = html.Div([
                 New York Times)
                 '''
                 ),
-                html.H4('Reference and Relevant Reading', style={'font-style': 'bold'}),
+                html.H4('Reference and Relevant Reading', style={'font-style': 'bold', "margin-top": "30px"}),
                 html.Div(dcc.Markdown(
                     '''
                     The state-level data is from [New York Times GitHub](https://github.com/nytimes/covid-19-data). 
@@ -291,17 +291,18 @@ app.layout = html.Div([
                 ),
                     style={'font-size': '12px', 'color': 'grey'}
                 ),
-            ],
-                width=5
+            ], width=5, style={'paddingRight': '50px'}
             ),
             dbc.Col([
                 html.Div([
                     'Pick the states and compare the curves! (The distribution of daily increase in each state)',
-                    dropdown_function_state, ], style={"margin-top": "10px"}),
+                     ], style={"margin-top": "10px"}),
+                    dbc.Row([dbc.Col(html.Div(dropdown_function_state)), dbc.Col(dbc.Button('Submit', id='button', style={}), width=2)]),
+
                 # html.Div(dcc.Markdown('123123123')),
-                dbc.Button('Submit', id='button', style={"margin-top": "5px"}),
+                # dbc.Button('Submit', id='button', style={"margin-top": "5px"}),
                 dcc.Graph(id='output-graph3', animate=None)
-            ], width=7), ],
+            ], width=7, style={'paddingLeft': '50px'}), ],
         ),
         dbc.Row([
             dbc.Col(html.H5('COVID-19 New Cases per 1M Resident per Day', style={'font-style': 'bold'}), width=5
@@ -319,7 +320,7 @@ app.layout = html.Div([
                     style={'font-size': '12px', 'color': 'grey',},
                 ), ], width={"size": 1, "order": 2, "offset": 0}
             ),
-        ], align="center", ),
+        ], align="center", style={'paddingTop': '30px'}),
         dbc.Row([
             dbc.Col([
                 html.Div(
@@ -338,7 +339,7 @@ app.layout = html.Div([
                 dbc.Button('Phase Map', id='button_phase', outline=True, color="primary",
                            style={"margin-left": "20px"}),
                 width=1.2),
-        ], justify="start", align="center",),
+        ], justify="start", align="center", style={'paddingTop': '30px'}),
         dbc.Row([
             dbc.Col([
                 html.Div(
@@ -346,7 +347,7 @@ app.layout = html.Div([
                 ),
             ]),
         ], ),
-    ], fluid=False)
+    ], fluid=True, style={'paddingLeft': '200px', 'paddingRight': '200px', 'paddingBottom': '100px', 'paddingTop': '50px'})
 ])
 
 
@@ -451,12 +452,13 @@ def create_trend_line(df, selected_state_list):
     fig.layout.template = 'ggplot2'
     for i, c in enumerate(selected_state_list):
         fig.add_trace(go.Scatter(x=date_list, y=df.loc[c].values*100,
+                                 text=[d.strftime("%Y-%m-%d") for d in date_list],
                                  mode='lines',
                                  # line_shape='spline',
                                  name=c,
                                  line={'color': color_m[i]},
                                  # hoverinfo="y+name",
-                                 hovertemplate='%{x}: <b>%{y:.0f}%</b><extra></extra>', ))
+                                 hovertemplate='%{text}: <b>%{y:.0f}%</b><extra></extra>', ))
         # '{:.0f}%'.format(df.loc[c]*100)
         # '%{x}: <b>%{y:.3f}</b>)<extra></extra>'
         fig.add_trace(go.Scatter(
@@ -483,11 +485,13 @@ def create_trend_line(df, selected_state_list):
         xaxis={
             'title_text': '',
             # 'tickformat': '%b',
-            'tickmode': 'array',
+            # 'tickformatstops1': [dict(dtickrange=["M1", "M12"], value="%b %Y"),],
+
+            'tickmode': 'auto',
             'ticks': 'outside',
             'tickcolor': '#F7FBFE',
             'title_standoff': 15,
-            'nticks': 4,
+            'nticks': 5,
             'showline': True,
             'showgrid': False,
             'showticklabels': True,
@@ -511,16 +515,24 @@ def create_trend_line(df, selected_state_list):
         paper_bgcolor='#FFFFFF',  # canvas color #F7FBFE
         plot_bgcolor='#FFFFFF',  # plot color #D8D991 #F6EEDF #FFF8DE #F7FBFE
         hoverlabel={'namelength': -1},
-        autosize=False,
-        height=350,
+        # autosize=False,
+        # height=350,
         margin={
             'autoexpand': True,
             'l': 0,
-            'r': 50,
+            'r': 20,
             't': 10,
             'b': 0,
                 }
     )
+    # fig.update_xaxes(tickformatstops = [dict(dtickrange=[None, 1000], value="%H:%M:%S.%L ms"),
+    #     dict(dtickrange=[1000, 60000], value="%H:%M:%S s"),
+    #     dict(dtickrange=[60000, 3600000], value="%H:%M m"),
+    #     dict(dtickrange=[3600000, 86400000], value="%H:%M h"),
+    #     dict(dtickrange=[86400000, 604800000], value="%e. %b d"),
+    #     dict(dtickrange=[604800000, "M1"], value="%b %Y"),
+    #     dict(dtickrange=["M1", "M12"], value="%b '%y M"),
+    #     dict(dtickrange=["M12", None], value="%Y Y")])
 
     # Adding labels
     annotations = []
@@ -580,8 +592,6 @@ def create_trend_line(df, selected_state_list):
 @app.callback(
     Output(component_id='output-graph1', component_property='figure'),
     [Input('button_alpha', 'n_clicks'), Input('button_order', 'n_clicks')],
-    # [Input('button', 'n_clicks')],
-    # [State(component_id='state_selection', component_property='value')],
 )
 
 def goplot1(button_alpha, button_order):
