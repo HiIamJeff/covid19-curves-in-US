@@ -141,6 +141,27 @@ def get_phase_dict():
     # print('complete extraction')
     return phase_dict
 
+def get_phase_link_df():
+    from bs4 import BeautifulSoup
+    import requests
+    import re
+
+    url = "https://www.nytimes.com/interactive/2020/us/states-reopen-map-coronavirus.html"
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text, 'lxml')
+
+    # state
+    sr1 = soup.select('.g-name')
+    scrap_list1 = [i.text for i in sr1]
+
+    # link
+    sr2 = soup.select('.g-link a', attrs={'href': re.compile("^http://")})
+    scrap_list2 = [link.get('href') for link in sr2]
+    link_list = [f'''[News Link]('{l}')''' for l in scrap_list2]
+    df_link = pd.DataFrame(np.array([scrap_list1, link_list]).T, index=scrap_list1, columns=['state', 'link'])
+    df_link.drop(['District of Columbia', 'Puerto Rico'], inplace=True)
+    return df_link
+
 
 def df_map_ETL(df_map):
     ## death data with most recent records
@@ -157,7 +178,8 @@ def df_map_ETL(df_map):
     df_map['case'] = round(df_map['case']).astype(int)
     # for hoverinfo
     df_map['text'] = (
-                df_map['state'].astype('str') + '<br>' + 'New Cases per 1M Resident: ' + df_map['case'].astype('str')
+                '<I><b>' + df_map['state'].astype('str') + '</b></I><br>' + 'New Cases per 1M Resident: '
+                + df_map['case'].astype('str')
                 + '<br>' + 'New Death per 1M Resident: ' + df_map['death'].astype('str') + '<br>' + 'Phase: ' + df_map[
                     'phase'] + '<extra></extra>')
     return df_map
@@ -183,6 +205,7 @@ df_case_std_row = pd.DataFrame(case_array_std_row, index=state_list)
 
 ## other info
 current_date = date_list[-1].strftime('%Y/%m/%d')
+df_link = get_phase_link_df()
 
 ####
 def case_data_process_tt(df_case_pop):
@@ -259,23 +282,31 @@ app.layout = html.Div([
             dbc.Col([
                 html.Div(
                     'Spot the Curves in US',
-                    style={'font-size': '26px', 'font-style': 'bold'}
+                    style={'font-size': '30px', 'font-style': 'bold'}
                 ),
-                html.Div([
-                    html.Div('The Better Overview of COVID-19 in Each State',
-                             style={'font-style': 'italic', 'display': 'inline'}),
-                    # html.Div('Data updated daily at 4 PM EST',
-                    # style={'font-style': 'italic', 'color': 'red', 'display': 'inline', 'paddingLeft': '10px'}),
-                ]),
-                html.Hr(),
                 dcc.Markdown(
                     '''
-                To better understand the status of each state in the US, this dashboard shows overview of state-level
-                information (Heat Map and Choropleth Map) and individual comparison between self-selected states.
+                    A Better Overview of COVID-19 in Each State 
+                    *Made by [Jeff Lu](https://www.linkedin.com/in/jefflu-chia-ching-lu/)*
+                    ''',
+                    style={'font-style': 'italic', 'display': 'inline'}),
+            ]),
+        ]),
+        html.Hr(),
+        dbc.Row([
+            dbc.Col([
+                html.H4('Purpose and Method', style={'font-style': 'bold'}),
+                dcc.Markdown(
+                    '''
+                To better understand COVID-19 in the US, this dashboard presents overview of state-level data 
+                with complementary information. This dashboard aims to show individual trend within each state, 
+                provide timely state-level phase information and **relieve people from overwhelming news from media 
+                outlets**. \n 
+                
                 The major metrics include:
                 - ```7-Day Moving Average```: A series of averages of daily increase in cases across the time 
-                - ```Phase```: The phase of the Coronavirus restrictions issued by each state government (defined by
-                New York Times)
+                - ```Phase```: The phase of the Coronavirus restrictions issued by each state government (defined and
+                 produced by New York Times; The bottom has a list of latest news about each state)
                 '''
                 ),
                 html.H4('Reference and Relevant Reading', style={'font-style': 'bold', "margin-top": "30px"}),
@@ -289,38 +320,42 @@ app.layout = html.Div([
                     
                 '''
                 ),
-                    style={'font-size': '12px', 'color': 'grey'}
+                    style={'font-size': '13px', 'color': 'grey'}
                 ),
             ], width=5, style={'paddingRight': '50px'}
             ),
             dbc.Col([
-                html.Div([
-                    'Pick the states and compare the curves! (The distribution of daily increase in each state)',
-                     ], style={"margin-top": "10px"}),
-                    dbc.Row([dbc.Col(html.Div(dropdown_function_state)), dbc.Col(dbc.Button('Submit', id='button', style={}), width=2)]),
-
-                # html.Div(dcc.Markdown('123123123')),
-                # dbc.Button('Submit', id='button', style={"margin-top": "5px"}),
+                html.H4(
+                    'Pick the States and Compare the Curves!',
+                    style={'font-style': 'bold', "margin-top": "0px"}),
+                html.Div(dcc.Markdown(
+                    '''
+                    The distribution of daily growth is normalized within the state (__displayed by percentage__) 
+                '''
+                ),
+                    style={'font-size': '13px', 'color': 'grey'}
+                ),
+                    dbc.Row([dbc.Col(html.Div(dropdown_function_state)),
+                             dbc.Col(dbc.Button('Submit', id='button', style={}), width=2)]),
                 dcc.Graph(id='output-graph3', animate=None)
             ], width=7, style={'paddingLeft': '50px'}), ],
         ),
         dbc.Row([
-            dbc.Col(html.H5('COVID-19 New Cases per 1M Resident per Day', style={'font-style': 'bold'}), width=5
-            ),
+            dbc.Col(html.H4('Daily New Cases per 1M Resident', style={'font-style': 'bold'}), width=5
+                ),
             dbc.Col([
                 html.Div(
                     dbc.Button('Alphabetical', id='button_alpha', outline=True, color="primary", style={}),
-                    style={'font-size': '12px', 'color': 'grey'}
                 ),
-            ],  width={"size": 1.2, "order": 1, "offset": 0}
+            ],  width={"size": 1, "offset": 5}
             ),
             dbc.Col([
                 html.Div(
                     dbc.Button('Rank', id='button_order', outline=True, color="primary", style={}),
-                    style={'font-size': '12px', 'color': 'grey',},
-                ), ], width={"size": 1, "order": 2, "offset": 0}
+                    ),
+            ], width={"size": 1, "offset": 0}
             ),
-        ], align="center", style={'paddingTop': '30px'}),
+        ], style={'paddingTop': '50px'}),
         dbc.Row([
             dbc.Col([
                 html.Div(
@@ -329,17 +364,20 @@ app.layout = html.Div([
             ]),
         ], ),
         dbc.Row([
-            dbc.Col(html.H5('Latest Daily Information Map', style={'font-style': 'bold'}), width=3.5
+            dbc.Col(html.H4('Latest Information Map', style={'font-style': 'bold'}), width=5
                     ),
-            dbc.Col(
-                dbc.Button('Info Map', id='button_info', outline=True, color="primary",
-                           style={"margin-left": "20px"}), width=1.2
+            dbc.Col([
+                html.Div(
+                    dbc.Button('Daily', id='button_info', outline=True, color="primary", style={'margin-left': '50px'}),
+                ),
+            ], width={"size": 1, "offset": 5}
             ),
-            dbc.Col(
-                dbc.Button('Phase Map', id='button_phase', outline=True, color="primary",
-                           style={"margin-left": "20px"}),
-                width=1.2),
-        ], justify="start", align="center", style={'paddingTop': '30px'}),
+            dbc.Col([
+                html.Div(
+                    dbc.Button('Phase', id='button_phase', outline=True, color="primary", style={'margin-left': '0px'}),
+                ),
+               ], width={"size": 1, "offset": 0}),
+        ], style={'paddingTop': '70px'}),
         dbc.Row([
             dbc.Col([
                 html.Div(
@@ -347,11 +385,19 @@ app.layout = html.Div([
                 ),
             ]),
         ], ),
-    ], fluid=True, style={'paddingLeft': '200px', 'paddingRight': '200px', 'paddingBottom': '100px', 'paddingTop': '50px'})
+        html.Div(dash_table.DataTable(id='datatable',
+                             export_format="csv",
+                             data=df_link.to_dict('records'),
+                            # columns=[{"name": i, "id": i} for i in df_link.columns],
+                             columns=[{"id": "state", "name": ["State"], "presentation": "markdown",},
+                                      {"id": "link", "name": ["News Link"], "presentation": "markdown",}],
+                                page_action='none',
+                                style_table={'height': '300px', 'overflowY': 'auto'}
+                        )),
+    ], fluid=True,
+        style={'paddingLeft': '200px', 'paddingRight': '200px', 'paddingBottom': '100px', 'paddingTop': '50px'})
 ])
 
-
-# style = {"margin-top": "80px"},
 
 ## If using dash code to plot, then use html.Div
 ## If using plotly code to plot, then use dcc.Graph
@@ -389,7 +435,7 @@ def create_case_heatmap(case_array, case_array_std, date_list, state_list):
             'autoexpand': True,
             'l': 5,
             'r': 2,
-            't': 15,
+            't': 30,
             'b': 5,
         },
         # autosize=False,
@@ -397,21 +443,57 @@ def create_case_heatmap(case_array, case_array_std, date_list, state_list):
         # paper_bgcolor='#F7FBFE',  # canvas color
         # plot_bgcolor='#F7FBFE',  # plot color #D8D991 #F6EEDF #FFF8DE
     )
+
+    annotations = []
+    date_tt = df_case_pop.idxmax().sort_values()
+    start_date = date_list[0]
+    current_date = date_list[-1]
+
+    #  emoji template: https://fsymbols.com/signs/stars/
+    for i, c in enumerate(state_list):
+        annotations.append(dict(xref='paper',
+                                x=1 - (current_date - date_tt[c]) / (current_date - start_date),
+                                y=c,
+                                xanchor='right', yanchor='middle',
+                                text='✦',
+                                font=dict(family='Arial', color='gray',
+                                          size=16), showarrow=False))
+    annotations.append(dict(xref='paper', yref='paper',
+                            x=1,
+                            y=1.007, #paper 1
+                            xanchor='right', yanchor='middle',
+                            text='✦: The date having the highest daily increase within the state ',
+                            font=dict(family='Arial', color='gray',
+                                      size=15), showarrow=False))
+    fig.update_layout(annotations=annotations)
+    annotations = []
+
     return fig
 
 
-def create_real_map():
-    fig = go.Figure(data=go.Choropleth(
-        locations=df_map['abbr'],
-        z=df_map['case'],
-        text=df_map['text'],  # hover info
-        locationmode='USA-states',
-        colorscale='Reds',
-        autocolorscale=False,
-        marker_line_color='white',  # line markers between states
-        colorbar_title="Daily Cases per 1M",
-        hovertemplate='%{text}' + '<extra></extra>',
-    ))
+def create_real_map(phase=False):
+    if phase is False:
+        fig = go.Figure(data=go.Choropleth(
+            locations=df_map['abbr'],
+            z=df_map['case'],
+            text=df_map['text'],  # hover info
+            locationmode='USA-states',
+            colorscale='Reds',
+            autocolorscale=False,
+            marker_line_color='white',  # line markers between states
+            colorbar_title="Daily Cases per 1M",
+            hovertemplate='%{text}' + '<extra></extra>',
+        ))
+    else:
+        color_list = [px.colors.qualitative.Vivid[i] for i in [3, 2, 10, 6]]
+        phase_list = ['Reopened', 'Reopening', 'Pausing', 'Reversing']
+        color_dict = {p: c for c, p in zip(color_list, phase_list)}
+
+        fig = px.choropleth(locations=df_map['abbr'],
+                            color=df_map['phase'],
+                            scope="usa", locationmode="USA-states",
+                            color_discrete_map=color_dict)
+        fig.update_traces(marker_line_width=0.2, marker_opacity=0.9)
 
     fig.update_layout(
         title={'text': '', # f'Latest Daily Information({current_date})'
@@ -428,7 +510,7 @@ def create_real_map():
         # plot_bgcolor='#F7FBFE',  # plot color #D8D991 #F6EEDF #FFF8DE
         # hoverlabel={'namelength': -1},
         # autosize=False,
-        # height=350,
+        height=700,
         # autosize = True,
         margin={
             # 'autoexpand': True,
@@ -525,35 +607,27 @@ def create_trend_line(df, selected_state_list):
             'b': 0,
                 }
     )
-    # fig.update_xaxes(tickformatstops = [dict(dtickrange=[None, 1000], value="%H:%M:%S.%L ms"),
-    #     dict(dtickrange=[1000, 60000], value="%H:%M:%S s"),
-    #     dict(dtickrange=[60000, 3600000], value="%H:%M m"),
-    #     dict(dtickrange=[3600000, 86400000], value="%H:%M h"),
-    #     dict(dtickrange=[86400000, 604800000], value="%e. %b d"),
-    #     dict(dtickrange=[604800000, "M1"], value="%b %Y"),
-    #     dict(dtickrange=["M1", "M12"], value="%b '%y M"),
-    #     dict(dtickrange=["M12", None], value="%Y Y")])
 
     # Adding labels
-    annotations = []
+    # annotations = []
     # for i, c in enumerate(selected_state_list):
-        #     for y_trace, label in zip(y_data, labels):
-        # labeling the left_side of the plot
-        #         annotations.append(dict(xref='paper', x=0.001, y=df.loc[c][0],
-        #                                       xanchor='right', yanchor='middle',
-        #                                       text= c,
-        #                                       font=dict(family='Arial',
-        #                                                 size=16),
-        #                                       showarrow=False))
-        # labeling the right_side of the plot
-        # annotations.append(dict(xref='paper', x=0.95, y=df.loc[c].iloc[-1],
-        #                         xanchor='left', yanchor='middle',
-        #                         text='{:.0f}%'.format(df.loc[c].iloc[-1]*100),
-        #                         font=dict(family='Arial',
-        #                                   size=16),
-        #                         showarrow=False))
+    #         for y_trace, label in zip(y_data, labels):
+    #     # labeling the left_side of the plot
+    #             annotations.append(dict(xref='paper', x=0.001, y=df.loc[c][0],
+    #                                           xanchor='right', yanchor='middle',
+    #                                           text= c,
+    #                                           font=dict(family='Arial',
+    #                                                     size=16),
+    #                                           showarrow=False))
+    #     # labeling the right_side of the plot
+    #     annotations.append(dict(xref='paper', x=0.95, y=df.loc[c].iloc[-1],
+    #                             xanchor='left', yanchor='middle',
+    #                             text='{:.0f}%'.format(df.loc[c].iloc[-1]*100),
+    #                             font=dict(family='Arial',
+    #                                       size=16),
+    #                             showarrow=False))
 
-    fig.update_layout(annotations=annotations)
+    # fig.update_layout(annotations=annotations)
 
     return fig
 
@@ -603,21 +677,21 @@ def goplot1(button_alpha, button_order):
         case_array, case_array_std, date_list, state_list = case_data_process(df_case_pop)
         output1 = create_case_heatmap(case_array, case_array_std, date_list, state_list)
     else:
-        case_array, case_array_std, date_list, state_list = case_data_process_tt(df_case_pop)
+        case_array, case_array_std, date_list, state_list = case_data_process(df_case_pop)
         output1 = create_case_heatmap(case_array, case_array_std, date_list, state_list)
     return output1
 
 @app.callback(
     Output(component_id='output-graph2', component_property='figure'),
-    # [Input('button1', 'n_clicks'), Input('button2', 'n_clicks')],
-    [Input('button', 'n_clicks')],
-    [State(component_id='state_selection', component_property='value')],
+    [Input('button_info', 'n_clicks'), Input('button_phase', 'n_clicks')],
 )
 
-def goplot2(button, state_selection):
-    # make sure it won't generate blank plot by itself and show error
-    if not state_selection:
-        return no_update  # This is prevent the web run the function without any input
+def goplot2(button_info, button_phase):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'button_info' in changed_id:
+        output2 = create_real_map()
+    elif 'button_phase' in changed_id:
+        output2 = create_real_map(phase=True)
     else:
         output2 = create_real_map()
     return output2
