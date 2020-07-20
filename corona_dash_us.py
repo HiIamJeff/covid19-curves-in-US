@@ -262,8 +262,9 @@ dropdown_function_state = dcc.Dropdown(id='state_selection',
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 # app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-app = dash.Dash(external_stylesheets=[dbc.themes.GRID, dbc.themes.BOOTSTRAP],
-                meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, dbc.themes.BOOTSTRAP],
+                # meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}],
+                )
 server = app.server
 app.title = 'states spot the curve'
 
@@ -342,19 +343,23 @@ app.layout = html.Div([
             ], width=7, style={'paddingLeft': '50px'}), ],
         ),
         dbc.Row([
-            dbc.Col(html.H4('Daily New Cases per 1M Resident', style={'font-style': 'bold'}), width=5
+            dbc.Col(html.H4('Daily New Cases per 1M Resident', style={'font-style': 'bold'}),
+                    # class='col-xl-9 col-lg-8 col-sm-12 col-xs-12'
+                    width='col-xl-9 col-lg-8 col-sm-6 col-xs-4', # 5
                 ),
             dbc.Col([
                 html.Div(
                     dbc.Button('Alphabetical', id='button_alpha', outline=True, color="primary", style={}),
                 ),
-            ],  width={"size": 1, "offset": 5}
+            ], style={'padding': '0px 5px'}
+# width={"size": 1, "offset": 5},
             ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Rank', id='button_order', outline=True, color="primary", style={}),
+                    dbc.Button('Ranked', id='button_order', outline=True, color="primary", style={}),
                     ),
-            ], width={"size": 1, "offset": 0}
+            ], style={'padding': '0px 5px'}
+# width={"size": 1, "offset": 0},
             ),
         ], style={'paddingTop': '50px'}),
         dbc.Row([
@@ -365,19 +370,20 @@ app.layout = html.Div([
             ]),
         ], ),
         dbc.Row([
-            dbc.Col(html.H4('Latest Information Map', style={'font-style': 'bold'}), width=5
+            dbc.Col(html.H4('Latest Information Map', style={'font-style': 'bold'}),
+                    width='col-xl-9 col-lg-8 col-sm-6 col-xs-4'
                     ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Daily', id='button_info', outline=True, color="primary", style={'margin-left': '50px'}),
+                    dbc.Button('Case & Death', id='button_info', outline=True, color="primary", style={}), # margin-left': '50px'
                 ),
-            ], width={"size": 1, "offset": 5}
+            ], style={'padding': '0px 5px'} # width={"size": 1, "offset": 5}
             ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Phase', id='button_phase', outline=True, color="primary", style={'margin-left': '0px'}),
+                    dbc.Button('Phase Info', id='button_phase', outline=True, color="primary", style={}), # 'margin-left': '0px'
                 ),
-               ], width={"size": 1, "offset": 0}),
+               ], style={'padding': '0px 5px'},)  # width={"size": 1, "offset": 0}),
         ], style={'paddingTop': '70px'}),
         dbc.Row([
             dbc.Col([
