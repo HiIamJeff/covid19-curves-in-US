@@ -262,7 +262,8 @@ dropdown_function_state = dcc.Dropdown(id='state_selection',
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 # app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-app = dash.Dash(external_stylesheets=[dbc.themes.GRID, dbc.themes.BOOTSTRAP])
+app = dash.Dash(external_stylesheets=[dbc.themes.GRID, dbc.themes.BOOTSTRAP],
+                meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
 server = app.server
 app.title = 'states spot the curve'
 
@@ -386,7 +387,7 @@ app.layout = html.Div([
             ]),
         ], ),
         html.Div(dash_table.DataTable(id='datatable',
-                             export_format="csv",
+                             # export_format="csv",
                              data=df_link.to_dict('records'),
                             # columns=[{"name": i, "id": i} for i in df_link.columns],
                              columns=[{"id": "state", "name": ["State"], "presentation": "markdown",},
