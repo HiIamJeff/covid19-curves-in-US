@@ -4,19 +4,13 @@
 ## https://plotly.com/python/reference/
 ## https://dash.plotly.com/dash-html-components
 
-## WORKING ON Heroku app!
-## DEPLOY PROBLEM (SEEMS THAT matplotlib IS NOT SUPPORTED IN HEROKU)
-## CHANGE COLOR SCALE TO PLOTLY (DON'T IMPORT matplotlib)
-## https://plotly.com/python/builtin-colorscales/
-## https://plotly.com/python/discrete-color/
-
 ## HOVER AND HIGHLIGHT
 # https://stackoverflow.com/questions/53327572/how-do-i-highlight-an-entire-trace-upon-hover-in-plotly-for-python
 # https://plotly.com/javascript/plotlyjs-events/
 
+## COOL WAY TO DO THE SIMILAR THING. CAN LEARN MARKDOWN FROM THIS
 # https://github.com/COVID19Tracking/covid-tracking-dash/blob/master/covid_tracking/app.py
 # http://35.212.27.3:8050/
-## COOL WAY TO DO THE SIMILAR THING. CAN LEARN MARKDOWN FROM THIS
 
 
 # import requests
@@ -31,10 +25,6 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import plotly_express as px
 import dash_table
-
-# import matplotlib as mpl
-# import matplotlib.pyplot as plt
-import math
 
 ## Load the data
 data_url = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv'
@@ -61,14 +51,18 @@ def ETL_df(df):
     df = df.loc['2020-03-17':]
     return df
 
+
 def moving_avg_df(df, death=True):
     if death is False:
-        df_case = df.pivot_table(values='cases', index=['date'], columns='state').rolling(window=7).mean().diff().iloc[7:]
+        df_case = df.pivot_table(values='cases', index=['date'], columns='state').rolling(window=7).mean().diff().iloc[
+                  7:]
     else:
-        df_case = df.pivot_table(values='deaths', index=['date'], columns='state').rolling(window=7).mean().diff().iloc[7:]
+        df_case = df.pivot_table(values='deaths', index=['date'], columns='state').rolling(window=7).mean().diff().iloc[
+                  7:]
     # replace some negative value with 0
     df_case = df_case.applymap(lambda x: 0 if x < 0 else x)
     return df_case
+
 
 def make_state_pop_dict():
     df_pop = pd.read_excel(
@@ -88,6 +82,7 @@ def data_process_avg(complete_df, pop_dict):
         except:
             complete_df[c + '_no_pop_value'] = complete_df[c]
     return complete_df
+
 
 def case_data_process(df_case):
     ## cases data
@@ -140,29 +135,30 @@ def get_phase_dict():
             phase = i
             continue
         phase_dict[i] = phase
-    # print('complete extraction')
     return phase_dict
 
+
 def df_map_ETL(df_map):
-    ## death data with most recent records (proccessed with 7-day average)
-    death_dict = moving_avg_df(ETL_df(df), death=True)
-    death_dict = death_dict.iloc[-1].to_dict()
+    # death data with most recent records (proccessed with 7-day average)
+    death_dict = moving_avg_df(ETL_df(df), death=True).iloc[-1].to_dict()
     death_dict = {s: round(death_dict.get(s) / state_pop_dict.get(s) * 1000000, 3) for s in df_case_pop.columns}
-    ## abbre data for plotting function
+
+    # abbre data for plotting function
     import us
     abbr_dict = us.states.mapping('name', 'abbr')
 
-    ## pipeline
+    # pipeline
     df_map['abbr'] = df_map['state'].map(abbr_dict)
     df_map['phase'] = df_map['state'].map(phase_dict)
     df_map['death'] = round(df_map['state'].map(death_dict), 2).astype(float)
     df_map['case'] = round(df_map['case']).astype(int)
     # for hoverinfo
     df_map['text'] = (
-                '<I><b>' + df_map['state'].astype('str') + '</b></I><br>' + 'New Cases per 1M Resident: '
-                + df_map['case'].astype('str')
-                + '<br>' + 'New Death per 1M Resident: ' + df_map['death'].astype('str') + '<extra></extra>')
+            '<I><b>' + df_map['state'].astype('str') + '</b></I><br>' + 'New Cases per 1M Resident: '
+            + df_map['case'].astype('str')
+            + '<br>' + 'New Death per 1M Resident: ' + df_map['death'].astype('str') + '<extra></extra>')
     return df_map
+
 
 def get_phase_link_df(df_map):
     from bs4 import BeautifulSoup
@@ -178,20 +174,19 @@ def get_phase_link_df(df_map):
     scrap_list1 = [i.text for i in sr1]
 
     # link
-    sr2 = soup.select('.g-link a', attrs={'href': re.compile("^http://")})
+    sr2 = soup.select('.g-link a', attrs={'href': re.compile('^http://')})
     scrap_list2 = [link.get('href') for link in sr2]
     link_list = [f'''[News Link]({l})''' for l in scrap_list2]
     df_link = pd.DataFrame(np.array([scrap_list1, link_list]).T, index=scrap_list1, columns=['state', 'link'])
     df_link.drop(['District of Columbia', 'Puerto Rico'], inplace=True)
     df_link = pd.merge(df_link, df_map, on='state')
-    df_link['text_phase'] = ('<I><b>' + df_link['state'].astype('str') + '</b></I><br>' + 'Phase: ' +
-                             df_link['phase'] + '<extra></extra>')
     return df_link
 
 
 ### individual line
 def standardized_row(array):
-    return ((array.T - np.min(array.T, axis=0))/np.ptp(array, axis=1)).T
+    return ((array.T - np.min(array.T, axis=0)) / np.ptp(array, axis=1)).T
+
 
 ### Final dataset
 ## heat map
@@ -211,6 +206,8 @@ df_case_std_row = pd.DataFrame(case_array_std_row, index=state_list)
 
 ## other info
 current_date = date_list[-1].strftime('%Y/%m/%d')
+
+
 # df_link = get_phase_link_df()
 
 ####
@@ -235,19 +232,20 @@ def case_data_process_tt(df_case_pop):
     state_list = sort_state_list
     return case_array, case_array_std, date_list, state_list
 
+
 #### Alarm function
 # find out which states break their state records in the last 5 days (meaning highly dangerous states!)
 def alarm_state_list():
     dict_alarm = (df_case_pop.idxmax().sort_values() > df_case_pop.tail(5).index[0]).to_dict()
     alarm_state_list = [k for k, v in dict_alarm.items() if v == True]
     return alarm_state_list
+
+
 alarm_state_list = alarm_state_list()
 
 ###############
 
 ####  drop down list function
-# create the option list
-
 state_options = [dict(label=s, value=s) for s in state_list]
 dropdown_function_state = dcc.Dropdown(id='state_selection',
                                        options=state_options,
@@ -257,31 +255,16 @@ dropdown_function_state = dcc.Dropdown(id='state_selection',
                                        # className="dcc_control"
                                        )
 
-### test ###
-
-
 ####  Initiate the app
 #### style setting
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 # external_stylesheets = ['https://unpkg.com/tailwindcss@1.5.1/dist/tailwind.min.css']
 
-# app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, dbc.themes.BOOTSTRAP],
                 # meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}],
                 )
 server = app.server
-app.title = 'states spot the curve'
-
-# in fact, html.Div() don't need children in my test
-# original version
-# app.layout = html.Div([
-#     html.H1('TEST: This is a title'),
-#     html.Div('This is some word'),
-#     html.P(['Please select a country' + ':', dropdown_function]),
-#     html.Button(id='submit-button-state', n_clicks=0, children='Submit'),
-#     dcc.Graph(id='output-graph', animate=None),
-# ])
+app.title = 'Spot the Curves in US'
 
 app.layout = html.Div([
     dbc.Container([
@@ -293,11 +276,23 @@ app.layout = html.Div([
                            # 'color': 'gray',
                            }
                 ),
-                dcc.Markdown(
-                    '''
-                    A Better Overview and Handy Dashboard of COVID-19 in Each State of the United States
-                    ''',
-                    style={'font-style': 'italic', 'display': 'inline'}),
+                # dcc.Markdown(
+                #     '''
+                #     A Better Overview and Handy Dashboard of COVID-19 in Each State of the United States
+                #     ''',
+                #     style={'font-style': 'italic', 'display': 'inline'}),
+                html.Div([html.Div('A Better Overview of COVID-19 in Each State of the United States',
+                        style={'font-style': 'italic', 'display': 'inline'}),
+                        html.Div(f'Data updated daily (Latest Date: {current_date})',
+                        style={'font-style': 'italic', 'color': 'blue', 'display': 'inline', 'paddingLeft': '10px'}),
+                    ]),
+                # html.Div(f'Data updated daily (Latest Date: {current_date})',
+                #         style={'font-style': 'italic', 'color': 'blue', 'display': 'inline', 'paddingLeft': '0px'}),
+                # dcc.Markdown(
+                #     f'''
+                #     Data updated daily (Latest Date: {current_date})
+                #     ''',
+                #     style={'font-style': 'italic', 'color': 'blue', 'display': 'inline'})
             ]),
         ]),
         html.Hr(),
@@ -312,13 +307,13 @@ app.layout = html.Div([
                 outlets**. \n 
                 
                 The major metrics include:
-                - ```7-Day Moving Average```: A series of averages of daily increase in cases across the time (applied 
-                to all numerical data in the heat map and the choropleth map below)
+                - ```7-Day Moving Average```: A series of averages of daily increase in cases or deaths across the time 
+                (applied to all numerical data in the heat map and the choropleth map below)
                 - ```Phase```: The phase of the Coronavirus restrictions issued by each state government (defined and
                  produced by New York Times; The bottom has a list of latest news about each state)
                 '''
                 ),
-                html.H4('Reference and Relevant Reading', style={'font-style': 'bold', "margin-top": "10%"}), # 30px
+                html.H4('Reference and Relevant Reading', style={'font-style': 'bold', "margin-top": "10%"}),  # 30px
                 html.Div(dcc.Markdown(
                     '''
                     The state-level data is from [New York Times GitHub](https://github.com/nytimes/covid-19-data). 
@@ -332,7 +327,7 @@ app.layout = html.Div([
                 ),
                     style={'font-size': '13px', 'color': 'grey'}
                 ),
-            ], width=5, style={'paddingRight': '3%'} # 50px
+            ], width=5, style={'paddingRight': '3%'}  # 50px
             ),
             dbc.Col([
                 html.H4(
@@ -345,29 +340,29 @@ app.layout = html.Div([
                 ),
                     style={'font-size': '13px', 'color': 'grey'}
                 ),
-                    dbc.Row([dbc.Col(html.Div(dropdown_function_state)),
-                             dbc.Col(dbc.Button('Submit', id='button', style={}), width=2)]),
+                dbc.Row([dbc.Col(html.Div(dropdown_function_state)),
+                         dbc.Col(dbc.Button('Submit', id='button', style={}), width=2)]),
                 dcc.Graph(id='output-graph3', animate=None)
             ], width=7, style={'paddingLeft': '3%'}), ],
         ),
         dbc.Row([
             dbc.Col(html.H4('Daily New Cases per 1M Resident', style={'font-style': 'bold'}),
                     # class='col-xl-9 col-lg-8 col-sm-12 col-xs-12'
-                    width='col-xl-9 col-lg-8 col-sm-6 col-xs-4', # 5
-                ),
+                    width='col-xl-9 col-lg-8 col-sm-6 col-xs-4',  # 5
+                    ),
             dbc.Col([
                 html.Div(
                     dbc.Button('Alphabetical', id='button_alpha', outline=True, color="primary", style={}),
                 ),
             ], style={'padding': '0px 5px'}
-# width={"size": 1, "offset": 5},
+                # width={"size": 1, "offset": 5},
             ),
             dbc.Col([
                 html.Div(
                     dbc.Button('Ranked', id='button_order', outline=True, color="primary", style={}),
-                    ),
+                ),
             ], style={'padding': '0px 5px'}
-# width={"size": 1, "offset": 0},
+                # width={"size": 1, "offset": 0},
             ),
         ], style={'paddingTop': '50px'}),
         dbc.Row([
@@ -383,15 +378,17 @@ app.layout = html.Div([
                     ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Case & Death', id='button_info', outline=True, color="primary", style={}), # margin-left': '50px'
+                    dbc.Button('Case & Death', id='button_info', outline=True, color="primary", style={}),
+                    # margin-left': '50px'
                 ),
-            ], style={'padding': '0px 5px'} # width={"size": 1, "offset": 5}
+            ], style={'padding': '0px 5px'}  # width={"size": 1, "offset": 5}
             ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Phase Info', id='button_phase', outline=True, color="primary", style={}), # 'margin-left': '0px'
+                    dbc.Button('Phase Info', id='button_phase', outline=True, color="primary", style={}),
+                    # 'margin-left': '0px'
                 ),
-               ], style={'padding': '0px 5px'},)  # width={"size": 1, "offset": 0}),
+            ], style={'padding': '0px 5px'}, )  # width={"size": 1, "offset": 0}),
         ], style={'paddingTop': '70px'}),
         dbc.Row([
             dbc.Col([
@@ -399,52 +396,49 @@ app.layout = html.Div([
                     dcc.Graph(id='output-graph2', animate=None)
                 ),
             ]),
-        ],),
+        ], ),
         dbc.Row(dbc.Col(html.H5('''Latest Daily Data and Relevant News''', style={'font-style': 'bold'}),
-                    width='col-xl-9 col-lg-8 col-sm-6 col-xs-4'
-                    ), style={'paddingTop': '50px', 'paddingBottom': '10px'}),
+                        width='col-xl-9 col-lg-8 col-sm-6 col-xs-4'
+                        ), style={'paddingTop': '50px', 'paddingBottom': '10px'}),
         html.Div(dash_table.DataTable(id='datatable',
-                             data=df_map.to_dict('records'),
-                             columns=[{"id": "state", "name": [""], "presentation": "markdown",},
-                                        {"id": "case", "name": ["Daily Cases per 1M"], "presentation": "markdown",},
-                                        {"id": "death", "name": ["Daily Death per 1M"], "presentation": "markdown",},
-                                    {"id": "phase", "name": ["State's Phase"], "presentation": "markdown",},
-                                      {"id": "link", "name": ["Relevant News"], "presentation": "markdown",}],
-                                page_action='none',
-                                style_table={'height': '300px',
-                                             # 'width': '1000px',
-                                             'width': '90%',
-                                             'minWidth': '90%',
-                                             'overflowY': 'auto',},
-                                # fixed_columns={'headers': True, 'data': 5}, #this will limit the display
-                                style_as_list_view=True,
+                                      data=df_map.to_dict('records'),
+                                      columns=[{"id": "state", "name": [""], "presentation": "markdown", },
+                                               {"id": "case", "name": ["Daily Cases per 1M"],
+                                                "presentation": "markdown", },
+                                               {"id": "death", "name": ["Daily Death per 1M"],
+                                                "presentation": "markdown", },
+                                               {"id": "phase", "name": ["State's Phase"], "presentation": "markdown", },
+                                               {"id": "link", "name": ["Relevant News"], "presentation": "markdown", }],
+                                      page_action='none',
+                                      style_table={'height': '300px',
+                                                   # 'width': '1000px',
+                                                   'width': '90%',
+                                                   'minWidth': '90%',
+                                                   'overflowY': 'auto', },
+                                      # fixed_columns={'headers': True, 'data': 5}, #this will limit the display
+                                      style_as_list_view=True,
 
-                                style_cell={
-                                            # 'padding': '0px',
-                                            # 'width': '50px',
-                                            'textAlign': 'left'},
-                                style_cell_conditional=[{'if': {'column_id': 'state'}, 'textAlign': 'left'},
-                                                        {'if': {'column_id': 'case'}, 'textAlign': 'left'},],
+                                      style_cell={
+                                          # 'padding': '0px',
+                                          # 'width': '50px',
+                                          'textAlign': 'left'},
+                                      style_cell_conditional=[{'if': {'column_id': 'state'}, 'textAlign': 'left'},
+                                                              {'if': {'column_id': 'case'}, 'textAlign': 'left'}, ],
                                       #  https://github.com/plotly/dash-table/issues/777 bug still exists!
-                                style_header={
-                                    # 'backgroundColor': '#F7FBFE',
-                                    'fontWeight': 'bold',
-                                    'font-size': 16,
-                                    'font-family': 'Arial'
-                                },
-                                    css=[{'selector': '.row', 'rule': 'margin: 0'}]
-                        ),
+                                      style_header={
+                                          # 'backgroundColor': '#F7FBFE',
+                                          'fontWeight': 'bold',
+                                          'font-size': 16,
+                                          'font-family': 'Arial'
+                                      },
+                                      css=[{'selector': '.row', 'rule': 'margin: 0'}]
+                                      ),
                  # style={'align-items': 'center',}
                  ),
     ], fluid=True,
-        # style={'paddingLeft': '200px', 'paddingRight': '200px', 'paddingBottom': '100px', 'paddingTop': '50px'},
-    style={'paddingLeft': '7%', 'paddingRight': '7%', 'paddingBottom': '3%', 'paddingTop': '3%'})
+        style={'paddingLeft': '7%', 'paddingRight': '7%', 'paddingBottom': '3%', 'paddingTop': '3%'})
 ])
 
-
-## If using dash code to plot, then use html.Div
-## If using plotly code to plot, then use dcc.Graph
-## p.s. they have different components so watch out (children vs figure)
 
 #### Plotting function ####
 
@@ -471,6 +465,8 @@ def create_case_heatmap(case_array, case_array_std, date_list, state_list):
                },
         xaxis_nticks=5,
         yaxis_categoryarray=list(reversed(state_list)),
+        xaxis_fixedrange=True,
+        yaxis_fixedrange=True,
         autosize=True,
         # width=1200,
         height=1000,
@@ -503,14 +499,13 @@ def create_case_heatmap(case_array, case_array_std, date_list, state_list):
                                           size=16), showarrow=False))
     annotations.append(dict(xref='paper', yref='paper',
                             x=1,
-                            y=1.007, #paper 1
+                            y=1.007,  # paper 1
                             xanchor='right', yanchor='middle',
-                            text='✦: The date having the highest daily increase within the state ',
+                            text='✦: The date reaching peak within the state',
                             font=dict(family='Arial', color='gray',
                                       size=15), showarrow=False))
     fig.update_layout(annotations=annotations)
-    annotations = []
-
+    # annotations = []
     return fig
 
 
@@ -527,7 +522,7 @@ def create_real_map(phase=False):
             # colorbar_title="Daily Cases per 1M",
             colorbar=dict(
                 title='Daily Cases per 1M',
-                thickness= 10, len= 0.5),
+                thickness=10, len=0.5),
             hovertemplate='%{text}' + '<extra></extra>',
         ))
     else:
@@ -541,12 +536,12 @@ def create_real_map(phase=False):
                             scope="usa", locationmode="USA-states",
                             color_discrete_map=color_dict,
                             # hover_data=['text_phase'],
-                            hover_data={'abbr': False, 'state':True, 'phase':True,}
+                            hover_data={'abbr': False, 'state': True, 'phase': True, }
                             )
         fig.update_traces(marker_line_width=0.2, marker_opacity=0.9)
 
     fig.update_layout(
-        title={'text': '', # f'Latest Daily Information({current_date})'
+        title={'text': '',  # f'Latest Daily Information({current_date})'
                # "yref": "paper",
                'y': 0.98,
                'x': 0.01,
@@ -566,13 +561,13 @@ def create_real_map(phase=False):
             # 'autoexpand': True,
             'l': 0,
             'r': 0,
-            't': 10, #20
+            't': 10,  # 20
             'b': 10,
         },
     )
     return fig
 
-### under development
+
 def create_trend_line(df, selected_state_list):
     color_n = len(selected_state_list)
     cm = px.colors.qualitative.T10
@@ -581,7 +576,7 @@ def create_trend_line(df, selected_state_list):
     fig = go.Figure()
     fig.layout.template = 'ggplot2'
     for i, c in enumerate(selected_state_list):
-        fig.add_trace(go.Scatter(x=date_list, y=df.loc[c].values*100,
+        fig.add_trace(go.Scatter(x=date_list, y=df.loc[c].values * 100,
                                  text=[d.strftime("%Y-%m-%d") for d in date_list],
                                  mode='lines',
                                  # line_shape='spline',
@@ -593,7 +588,7 @@ def create_trend_line(df, selected_state_list):
         # '%{x}: <b>%{y:.3f}</b>)<extra></extra>'
         fig.add_trace(go.Scatter(
             x=[date_list[-1]],
-            y=[df.loc[c].values[-1]*100],
+            y=[df.loc[c].values[-1] * 100],
             name=c + ' endpoint',
             mode='markers',
             marker={'color': color_m[i], 'size': 10},
@@ -608,10 +603,10 @@ def create_trend_line(df, selected_state_list):
             'font': {'size': 20, 'family': 'Arial, sans-serif'},
             # "yref": "paper",
             'y': 0.98,
-            'x':0.01,
+            'x': 0.01,
             # 'xanchor': 'left',
             # 'yanchor': 'top',
-            },
+        },
         xaxis={
             'title_text': '',
             # 'tickformat': '%b',
@@ -629,6 +624,7 @@ def create_trend_line(df, selected_state_list):
             'linewidth': 2,
             'anchor': 'free',
             'position': 0.02,
+            'fixedrange': True,
         },
         yaxis={
             'title_text': '',
@@ -639,7 +635,8 @@ def create_trend_line(df, selected_state_list):
             'showgrid': False,
             'zeroline': False,
             'showline': False,
-            'showticklabels': False, },
+            'showticklabels': False,
+            'fixedrange': True, },
         showlegend=True,
         # legend_borderwidth=5,
         paper_bgcolor='#FFFFFF',  # canvas color #F7FBFE
@@ -653,7 +650,7 @@ def create_trend_line(df, selected_state_list):
             'r': 20,
             't': 10,
             'b': 0,
-                }
+        }
     )
 
     # Adding labels
@@ -680,33 +677,7 @@ def create_trend_line(df, selected_state_list):
     return fig
 
 
-
-
-# the output's component_property was 'children'
-
-# # State use for click action required!
-#
-# # if you want to change by input, then plotting should be in the def at the end ("input_data")
-# # if you only want to show specific graph, then can plot it in the app.layout
-#
-# ## Multiple dropdown list
-# def goplot(button_1, country_selection1, country_selection2, country_selection3, country_selection4):
-#     # make sure it won't generate blank plot by itself and show error
-#     if not (country_selection1, country_selection2, country_selection3, country_selection4):
-#         return no_update  # This is prevent the web run the function without any input
-#     # elif button_1:
-#     #     outputtt = create_trend_line_infection_rate_2day(infection_data, country_selection1 + country_selection2
-#     #                                                      + country_selection3 + country_selection4,
-#     #                                                      '<b>Infection Rate Per Country</b>')
-#     else:
-#         outputtt = create_trend_line_infection_rate_2day(infection_data, country_selection1 + country_selection2
-#                                                          + country_selection3 + country_selection4,
-#                                                          '<b>Infection Rate Per Country</b>')
-#     return outputtt
-# return country_selection
-
-
-#### test multiple buttons
+## test multiple buttons
 # State use for click action required!
 # if you want to change by input, then plotting should be in the def at the end ("input_data")
 # if you only want to show specific graph, then can plot it in the app.layout
@@ -715,7 +686,6 @@ def create_trend_line(df, selected_state_list):
     Output(component_id='output-graph1', component_property='figure'),
     [Input('button_alpha', 'n_clicks'), Input('button_order', 'n_clicks')],
 )
-
 def goplot1(button_alpha, button_order):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'button_order' in changed_id:
@@ -729,11 +699,11 @@ def goplot1(button_alpha, button_order):
         output1 = create_case_heatmap(case_array, case_array_std, date_list, state_list)
     return output1
 
+
 @app.callback(
     Output(component_id='output-graph2', component_property='figure'),
     [Input('button_info', 'n_clicks'), Input('button_phase', 'n_clicks')],
 )
-
 def goplot2(button_info, button_phase):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'button_info' in changed_id:
@@ -744,13 +714,13 @@ def goplot2(button_info, button_phase):
         output2 = create_real_map()
     return output2
 
+
 @app.callback(
     Output(component_id='output-graph3', component_property='figure'),
     # [Input('button1', 'n_clicks'), Input('button2', 'n_clicks')],
     [Input('button', 'n_clicks')],
     [State(component_id='state_selection', component_property='value')],
 )
-
 def goplot3(button, state_selection):
     # make sure it won't generate blank plot by itself and show error
     if not state_selection:
