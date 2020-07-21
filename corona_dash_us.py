@@ -59,15 +59,18 @@ def ETL_df(df):
 
     # Complete 50 states records start from 2020-03-17
     df = df.loc['2020-03-17':]
-    df_case = df.pivot_table(values='cases', index=['date'], columns='state').rolling(window=7).mean().diff().iloc[7:]
+    return df
 
+def moving_avg_df(df, death=True):
+    if death is False:
+        df_case = df.pivot_table(values='cases', index=['date'], columns='state').rolling(window=7).mean().diff().iloc[7:]
+    else:
+        df_case = df.pivot_table(values='deaths', index=['date'], columns='state').rolling(window=7).mean().diff().iloc[7:]
     # replace some negative value with 0
     df_case = df_case.applymap(lambda x: 0 if x < 0 else x)
-
     return df_case
 
-
-def state_pop_dict():
+def make_state_pop_dict():
     df_pop = pd.read_excel(
         'https://www2.census.gov/programs-surveys/popest/tables/2010-2019/state/totals/nst-est2019-01.xlsx', header=3)
     df_pop = df_pop[[2019, 'Unnamed: 0']].iloc[:-7].set_index('Unnamed: 0')
@@ -85,7 +88,6 @@ def data_process_avg(complete_df, pop_dict):
         except:
             complete_df[c + '_no_pop_value'] = complete_df[c]
     return complete_df
-
 
 def case_data_process(df_case):
     ## cases data
@@ -107,7 +109,7 @@ def case_data_process(df_case):
 
 
 ### Real map
-def df_map():
+def make_df_map():
     df_map = pd.DataFrame(df_case_pop.iloc[-1])
     df_map.columns = ['case']
     df_map = df_map.reset_index()
@@ -141,7 +143,28 @@ def get_phase_dict():
     # print('complete extraction')
     return phase_dict
 
-def get_phase_link_df():
+def df_map_ETL(df_map):
+    ## death data with most recent records (proccessed with 7-day average)
+    death_dict = moving_avg_df(ETL_df(df), death=True)
+    death_dict = death_dict.iloc[-1].to_dict()
+    death_dict = {s: round(death_dict.get(s) / state_pop_dict.get(s) * 1000000, 3) for s in df_case_pop.columns}
+    ## abbre data for plotting function
+    import us
+    abbr_dict = us.states.mapping('name', 'abbr')
+
+    ## pipeline
+    df_map['abbr'] = df_map['state'].map(abbr_dict)
+    df_map['phase'] = df_map['state'].map(phase_dict)
+    df_map['death'] = round(df_map['state'].map(death_dict), 2).astype(float)
+    df_map['case'] = round(df_map['case']).astype(int)
+    # for hoverinfo
+    df_map['text'] = (
+                '<I><b>' + df_map['state'].astype('str') + '</b></I><br>' + 'New Cases per 1M Resident: '
+                + df_map['case'].astype('str')
+                + '<br>' + 'New Death per 1M Resident: ' + df_map['death'].astype('str') + '<extra></extra>')
+    return df_map
+
+def get_phase_link_df(df_map):
     from bs4 import BeautifulSoup
     import requests
     import re
@@ -157,32 +180,14 @@ def get_phase_link_df():
     # link
     sr2 = soup.select('.g-link a', attrs={'href': re.compile("^http://")})
     scrap_list2 = [link.get('href') for link in sr2]
-    link_list = [f'''[News Link]('{l}')''' for l in scrap_list2]
+    link_list = [f'''[News Link]({l})''' for l in scrap_list2]
     df_link = pd.DataFrame(np.array([scrap_list1, link_list]).T, index=scrap_list1, columns=['state', 'link'])
     df_link.drop(['District of Columbia', 'Puerto Rico'], inplace=True)
+    df_link = pd.merge(df_link, df_map, on='state')
+    df_link['text_phase'] = ('<I><b>' + df_link['state'].astype('str') + '</b></I><br>' + 'Phase: ' +
+                             df_link['phase'] + '<extra></extra>')
     return df_link
 
-
-def df_map_ETL(df_map):
-    ## death data with most recent records
-    death_dict = df[df['date'] == df['date'].max()][['state', 'deaths']].set_index('state').T.to_dict('index')['deaths']
-    death_dict = {s: round(death_dict.get(s) / state_pop_dict.get(s) * 1000000, 3) for s in df_map['state']}
-    ## abbre data for plotting function
-    import us
-    abbr_dict = us.states.mapping('name', 'abbr')
-
-    ## pipeline
-    df_map['abbr'] = df_map['state'].map(abbr_dict)
-    df_map['phase'] = df_map['state'].map(phase_dict)
-    df_map['death'] = round(df_map['state'].map(death_dict), 0).astype(int)
-    df_map['case'] = round(df_map['case']).astype(int)
-    # for hoverinfo
-    df_map['text'] = (
-                '<I><b>' + df_map['state'].astype('str') + '</b></I><br>' + 'New Cases per 1M Resident: '
-                + df_map['case'].astype('str')
-                + '<br>' + 'New Death per 1M Resident: ' + df_map['death'].astype('str') + '<br>' + 'Phase: ' + df_map[
-                    'phase'] + '<extra></extra>')
-    return df_map
 
 ### individual line
 def standardized_row(array):
@@ -190,14 +195,15 @@ def standardized_row(array):
 
 ### Final dataset
 ## heat map
-df_case = ETL_df(df)
-state_pop_dict = state_pop_dict()
+
+df_case = moving_avg_df(ETL_df(df), death=False)
+state_pop_dict = make_state_pop_dict()
 df_case_pop = data_process_avg(df_case, state_pop_dict)
 case_array, case_array_std, date_list, state_list = case_data_process(df_case_pop)
 
 ## real map
 phase_dict = get_phase_dict()
-df_map = df_map_ETL(df_map())
+df_map = get_phase_link_df(df_map_ETL(make_df_map()))
 
 ## individual line
 case_array_std_row = standardized_row(case_array)
@@ -205,7 +211,7 @@ df_case_std_row = pd.DataFrame(case_array_std_row, index=state_list)
 
 ## other info
 current_date = date_list[-1].strftime('%Y/%m/%d')
-df_link = get_phase_link_df()
+# df_link = get_phase_link_df()
 
 ####
 def case_data_process_tt(df_case_pop):
@@ -229,7 +235,6 @@ def case_data_process_tt(df_case_pop):
     state_list = sort_state_list
     return case_array, case_array_std, date_list, state_list
 
-
 #### Alarm function
 # find out which states break their state records in the last 5 days (meaning highly dangerous states!)
 def alarm_state_list():
@@ -237,8 +242,6 @@ def alarm_state_list():
     alarm_state_list = [k for k, v in dict_alarm.items() if v == True]
     return alarm_state_list
 alarm_state_list = alarm_state_list()
-
-
 
 ###############
 
@@ -260,6 +263,8 @@ dropdown_function_state = dcc.Dropdown(id='state_selection',
 ####  Initiate the app
 #### style setting
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+# external_stylesheets = ['https://unpkg.com/tailwindcss@1.5.1/dist/tailwind.min.css']
+
 # app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, dbc.themes.BOOTSTRAP],
@@ -284,12 +289,13 @@ app.layout = html.Div([
             dbc.Col([
                 html.Div(
                     'Spot the Curves in US',
-                    style={'font-size': '30px', 'font-style': 'bold'}
+                    style={'font-size': '40px', 'font-style': 'extra bold',
+                           # 'color': 'gray',
+                           }
                 ),
                 dcc.Markdown(
                     '''
-                    A Better Overview of COVID-19 in Each State 
-                    *Made by [Jeff Lu](https://www.linkedin.com/in/jefflu-chia-ching-lu/)*
+                    A Better Overview and Handy Dashboard of COVID-19 in Each State of the United States
                     ''',
                     style={'font-style': 'italic', 'display': 'inline'}),
             ]),
@@ -306,12 +312,13 @@ app.layout = html.Div([
                 outlets**. \n 
                 
                 The major metrics include:
-                - ```7-Day Moving Average```: A series of averages of daily increase in cases across the time 
+                - ```7-Day Moving Average```: A series of averages of daily increase in cases across the time (applied 
+                to all numerical data in the heat map and the choropleth map below)
                 - ```Phase```: The phase of the Coronavirus restrictions issued by each state government (defined and
                  produced by New York Times; The bottom has a list of latest news about each state)
                 '''
                 ),
-                html.H4('Reference and Relevant Reading', style={'font-style': 'bold', "margin-top": "30px"}),
+                html.H4('Reference and Relevant Reading', style={'font-style': 'bold', "margin-top": "10%"}), # 30px
                 html.Div(dcc.Markdown(
                     '''
                     The state-level data is from [New York Times GitHub](https://github.com/nytimes/covid-19-data). 
@@ -319,12 +326,13 @@ app.layout = html.Div([
                     scrapped from [New York Times](https://www.nytimes.com/interactive/2020/us/states-reopen-map-coronavirus.html).
                     Here is another [country-level dashboard](https://spot-the-curve-coronavirus.herokuapp.com/) and 
                     the [Medium article](https://towardsdatascience.com/spot-the-curve-visualization-of-cases-data-on-coronavirus-8ec7cc1968d1?source=friends_link&sk=4f984ca1c1e4df9535b33d9ccab738ee) about interpreting Coronavirus data. 
-                    
+                    If there is any mistake or comment on the data, visualizations or the dashboard, please feel free to 
+                    contact the author (*[Jeff Lu](https://www.linkedin.com/in/jefflu-chia-ching-lu/)*) 
                 '''
                 ),
                     style={'font-size': '13px', 'color': 'grey'}
                 ),
-            ], width=5, style={'paddingRight': '50px'}
+            ], width=5, style={'paddingRight': '3%'} # 50px
             ),
             dbc.Col([
                 html.H4(
@@ -340,7 +348,7 @@ app.layout = html.Div([
                     dbc.Row([dbc.Col(html.Div(dropdown_function_state)),
                              dbc.Col(dbc.Button('Submit', id='button', style={}), width=2)]),
                 dcc.Graph(id='output-graph3', animate=None)
-            ], width=7, style={'paddingLeft': '50px'}), ],
+            ], width=7, style={'paddingLeft': '3%'}), ],
         ),
         dbc.Row([
             dbc.Col(html.H4('Daily New Cases per 1M Resident', style={'font-style': 'bold'}),
@@ -370,7 +378,7 @@ app.layout = html.Div([
             ]),
         ], ),
         dbc.Row([
-            dbc.Col(html.H4('Latest Information Map', style={'font-style': 'bold'}),
+            dbc.Col(html.H4(f'Latest Daily Information ({current_date})', style={'font-style': 'bold'}),
                     width='col-xl-9 col-lg-8 col-sm-6 col-xs-4'
                     ),
             dbc.Col([
@@ -391,18 +399,46 @@ app.layout = html.Div([
                     dcc.Graph(id='output-graph2', animate=None)
                 ),
             ]),
-        ], ),
+        ],),
+        dbc.Row(dbc.Col(html.H5('''Latest Daily Data and Relevant News''', style={'font-style': 'bold'}),
+                    width='col-xl-9 col-lg-8 col-sm-6 col-xs-4'
+                    ), style={'paddingTop': '50px', 'paddingBottom': '10px'}),
         html.Div(dash_table.DataTable(id='datatable',
-                             # export_format="csv",
-                             data=df_link.to_dict('records'),
-                            # columns=[{"name": i, "id": i} for i in df_link.columns],
-                             columns=[{"id": "state", "name": ["State"], "presentation": "markdown",},
-                                      {"id": "link", "name": ["News Link"], "presentation": "markdown",}],
+                             data=df_map.to_dict('records'),
+                             columns=[{"id": "state", "name": [""], "presentation": "markdown",},
+                                        {"id": "case", "name": ["Daily Cases per 1M"], "presentation": "markdown",},
+                                        {"id": "death", "name": ["Daily Death per 1M"], "presentation": "markdown",},
+                                    {"id": "phase", "name": ["State's Phase"], "presentation": "markdown",},
+                                      {"id": "link", "name": ["Relevant News"], "presentation": "markdown",}],
                                 page_action='none',
-                                style_table={'height': '300px', 'overflowY': 'auto'}
-                        )),
+                                style_table={'height': '300px',
+                                             # 'width': '1000px',
+                                             'width': '90%',
+                                             'minWidth': '90%',
+                                             'overflowY': 'auto',},
+                                # fixed_columns={'headers': True, 'data': 5}, #this will limit the display
+                                style_as_list_view=True,
+
+                                style_cell={
+                                            # 'padding': '0px',
+                                            # 'width': '50px',
+                                            'textAlign': 'left'},
+                                style_cell_conditional=[{'if': {'column_id': 'state'}, 'textAlign': 'left'},
+                                                        {'if': {'column_id': 'case'}, 'textAlign': 'left'},],
+                                      #  https://github.com/plotly/dash-table/issues/777 bug still exists!
+                                style_header={
+                                    # 'backgroundColor': '#F7FBFE',
+                                    'fontWeight': 'bold',
+                                    'font-size': 16,
+                                    'font-family': 'Arial'
+                                },
+                                    css=[{'selector': '.row', 'rule': 'margin: 0'}]
+                        ),
+                 # style={'align-items': 'center',}
+                 ),
     ], fluid=True,
-        style={'paddingLeft': '200px', 'paddingRight': '200px', 'paddingBottom': '100px', 'paddingTop': '50px'})
+        # style={'paddingLeft': '200px', 'paddingRight': '200px', 'paddingBottom': '100px', 'paddingTop': '50px'},
+    style={'paddingLeft': '7%', 'paddingRight': '7%', 'paddingBottom': '3%', 'paddingTop': '3%'})
 ])
 
 
@@ -488,7 +524,10 @@ def create_real_map(phase=False):
             colorscale='Reds',
             autocolorscale=False,
             marker_line_color='white',  # line markers between states
-            colorbar_title="Daily Cases per 1M",
+            # colorbar_title="Daily Cases per 1M",
+            colorbar=dict(
+                title='Daily Cases per 1M',
+                thickness= 10, len= 0.5),
             hovertemplate='%{text}' + '<extra></extra>',
         ))
     else:
@@ -496,10 +535,14 @@ def create_real_map(phase=False):
         phase_list = ['Reopened', 'Reopening', 'Pausing', 'Reversing']
         color_dict = {p: c for c, p in zip(color_list, phase_list)}
 
-        fig = px.choropleth(locations=df_map['abbr'],
+        fig = px.choropleth(data_frame=df_map,
+                            locations=df_map['abbr'],
                             color=df_map['phase'],
                             scope="usa", locationmode="USA-states",
-                            color_discrete_map=color_dict)
+                            color_discrete_map=color_dict,
+                            # hover_data=['text_phase'],
+                            hover_data={'abbr': False, 'state':True, 'phase':True,}
+                            )
         fig.update_traces(marker_line_width=0.2, marker_opacity=0.9)
 
     fig.update_layout(
@@ -526,8 +569,6 @@ def create_real_map(phase=False):
             't': 10, #20
             'b': 10,
         },
-        # colorbar={'x':1},
-        # coloraxis_colorbar={'thickness': 5, 'x':-1, 'xanchor':'right'},
     )
     return fig
 
