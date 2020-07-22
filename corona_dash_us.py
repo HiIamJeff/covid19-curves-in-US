@@ -156,7 +156,7 @@ def df_map_ETL(df_map):
     df_map['text'] = (
             '<I><b>' + df_map['state'].astype('str') + '</b></I><br>' + 'New Cases per 1M Resident: '
             + df_map['case'].astype('str')
-            + '<br>' + 'New Death per 1M Resident: ' + df_map['death'].astype('str') + '<extra></extra>')
+            + '<br>' + 'New Deaths per 1M Resident: ' + df_map['death'].astype('str') + '<extra></extra>')
     return df_map
 
 
@@ -264,14 +264,14 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, dbc.themes.BOOT
                 # meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}],
                 )
 server = app.server
-app.title = 'Spot the Curves in US'
+app.title = 'Curves in the US'
 
 app.layout = html.Div([
     dbc.Container([
         dbc.Row([
             dbc.Col([
                 html.Div(
-                    'Spot the Curves in US',
+                    'Spotting the Curves in the US',
                     style={'font-size': '40px', 'font-style': 'extra bold',
                            # 'color': 'gray',
                            }
@@ -282,10 +282,11 @@ app.layout = html.Div([
                 #     ''',
                 #     style={'font-style': 'italic', 'display': 'inline'}),
                 html.Div([html.Div('A Better Overview of COVID-19 in Each State of the United States',
-                        style={'font-style': 'italic', 'display': 'inline'}),
-                        html.Div(f'Data updated daily (Latest Date: {current_date})',
-                        style={'font-style': 'italic', 'color': 'blue', 'display': 'inline', 'paddingLeft': '10px'}),
-                    ]),
+                                   style={'font-style': 'italic', 'display': 'inline'}),
+                          html.Div(f'Data updated daily (Last Updated: {current_date})',
+                                   style={'font-style': 'italic', 'color': 'blue', 'display': 'inline',
+                                          'paddingLeft': '10px'}),
+                          ]),
                 # html.Div(f'Data updated daily (Latest Date: {current_date})',
                 #         style={'font-style': 'italic', 'color': 'blue', 'display': 'inline', 'paddingLeft': '0px'}),
                 # dcc.Markdown(
@@ -301,29 +302,31 @@ app.layout = html.Div([
                 html.H4('Purpose and Method', style={'font-style': 'bold'}),
                 dcc.Markdown(
                     '''
-                To better understand COVID-19 in the US, this dashboard presents overview of state-level data 
-                with complementary information. This dashboard aims to show individual trend within each state, 
-                provide timely state-level phase information and **relieve people from overwhelming news from media 
-                outlets**. \n 
+                To better understand COVID-19 in the US, this dashboard presents an overview of state-level data 
+                with complementary information. This dashboard aims to show individual trends within each state, 
+                extract timely state-level phase information and **provide a consistent and easy-to-read platform 
+                other than media outlets**. \n 
                 
                 The major metrics include:
-                - ```7-Day Moving Average```: A series of averages of daily increase in cases or deaths across the time 
+                - ```7-Day Moving Average```: A series of averages of daily increases in cases or deaths over time 
                 (applied to all numerical data in the heat map and the choropleth map below)
-                - ```Phase```: The phase of the Coronavirus restrictions issued by each state government (defined and
-                 produced by New York Times; The bottom has a list of latest news about each state)
+                - ```Phase```: The phase of the Coronavirus restrictions issued by each state government (as reported
+                 by *The New York Times*; scroll to the bottom of this page for a list of the latest news about each 
+                 state)
                 '''
-                ),
-                html.H4('Reference and Relevant Reading', style={'font-style': 'bold', "margin-top": "10%"}),  # 30px
+                ),  ## and filter the most important data from the news in an easy-to-read, straightforward platform.
+                html.H4('References and Relevant Readings', style={'font-style': 'bold', "margin-top": "10%"}),  # 30px
                 html.Div(dcc.Markdown(
                     '''
-                    The state-level data is from [New York Times GitHub](https://github.com/nytimes/covid-19-data). 
-                    The information about phase of each state is 
-                    scrapped from [New York Times](https://www.nytimes.com/interactive/2020/us/states-reopen-map-coronavirus.html).
+                    The state-level data is from [The New York Times GitHub](https://github.com/nytimes/covid-19-data). 
+                    The information about the phases of each state is retrieved from 
+                    [The New York Times](https://www.nytimes.com/interactive/2020/us/states-reopen-map-coronavirus.html).
                     Here is another [country-level dashboard](https://spot-the-curve-coronavirus.herokuapp.com/) and 
-                    the [Medium article](https://towardsdatascience.com/spot-the-curve-visualization-of-cases-data-on-coronavirus-8ec7cc1968d1?source=friends_link&sk=4f984ca1c1e4df9535b33d9ccab738ee) about interpreting Coronavirus data. 
-                    If there is any mistake or comment on the data, visualizations or the dashboard, please feel free to 
-                    contact the author (*[Jeff Lu](https://www.linkedin.com/in/jefflu-chia-ching-lu/)*) 
-                '''
+                    a [Medium article](https://towardsdatascience.com/spot-the-curve-visualization-of-cases-data-on-coronavirus-8ec7cc1968d1?source=friends_link&sk=4f984ca1c1e4df9535b33d9ccab738ee) 
+                    about interpreting Coronavirus data. If you notice any mistakes or have any comments regarding the 
+                    data, visualizations or dashboard, please feel free to contact the author 
+                    (*[Jeff Lu](https://www.linkedin.com/in/jefflu-chia-ching-lu/)*) 
+                ''',
                 ),
                     style={'font-size': '13px', 'color': 'grey'}
                 ),
@@ -346,7 +349,7 @@ app.layout = html.Div([
             ], width=7, style={'paddingLeft': '3%'}), ],
         ),
         dbc.Row([
-            dbc.Col(html.H4('Daily New Cases per 1M Resident', style={'font-style': 'bold'}),
+            dbc.Col(html.H4('Daily New Cases per 1M Residents', style={'font-style': 'bold'}),
                     # class='col-xl-9 col-lg-8 col-sm-12 col-xs-12'
                     width='col-xl-9 col-lg-8 col-sm-6 col-xs-4',  # 5
                     ),
@@ -359,7 +362,7 @@ app.layout = html.Div([
             ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Ranked', id='button_order', outline=True, color="primary", style={}),
+                    dbc.Button('Ranked by Peak Date', id='button_order', outline=True, color="primary", style={}),
                 ),
             ], style={'padding': '0px 5px'}
                 # width={"size": 1, "offset": 0},
@@ -378,7 +381,7 @@ app.layout = html.Div([
                     ),
             dbc.Col([
                 html.Div(
-                    dbc.Button('Case & Death', id='button_info', outline=True, color="primary", style={}),
+                    dbc.Button('Cases & Deaths', id='button_info', outline=True, color="primary", style={}),
                     # margin-left': '50px'
                 ),
             ], style={'padding': '0px 5px'}  # width={"size": 1, "offset": 5}
@@ -405,7 +408,7 @@ app.layout = html.Div([
                                       columns=[{"id": "state", "name": [""], "presentation": "markdown", },
                                                {"id": "case", "name": ["Daily Cases per 1M"],
                                                 "presentation": "markdown", },
-                                               {"id": "death", "name": ["Daily Death per 1M"],
+                                               {"id": "death", "name": ["Daily Deaths per 1M"],
                                                 "presentation": "markdown", },
                                                {"id": "phase", "name": ["State's Phase"], "presentation": "markdown", },
                                                {"id": "link", "name": ["Relevant News"], "presentation": "markdown", }],
@@ -501,7 +504,7 @@ def create_case_heatmap(case_array, case_array_std, date_list, state_list):
                             x=1,
                             y=1.007,  # paper 1
                             xanchor='right', yanchor='middle',
-                            text='✦: The date reaching peak within the state',
+                            text='✦: *Date of peak number of new cases within the state',
                             font=dict(family='Arial', color='gray',
                                       size=15), showarrow=False))
     fig.update_layout(annotations=annotations)
