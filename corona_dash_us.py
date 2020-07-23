@@ -266,6 +266,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, dbc.themes.BOOT
 server = app.server
 app.title = 'Curves in the US'
 
+
 app.layout = html.Div([
     dbc.Container([
         dbc.Row([
@@ -299,7 +300,7 @@ app.layout = html.Div([
         html.Hr(),
         dbc.Row([
             dbc.Col([
-                html.H4('Purpose and Method', style={'font-style': 'bold'}),
+                html.H4('Purpose and Features', style={'font-style': 'bold'}),
                 dcc.Markdown(
                     '''
                 To better understand COVID-19 in the US, this dashboard presents an overview of state-level data 
@@ -436,12 +437,14 @@ app.layout = html.Div([
                                       },
                                       css=[{'selector': '.row', 'rule': 'margin: 0'}]
                                       ),
-                 # style={'align-items': 'center',}
+                 style={'width': '100%',
+                        # 'display': 'flex', # seems like this!
+                        'justify-content': 'center'
+                        }
                  ),
     ], fluid=True,
         style={'paddingLeft': '7%', 'paddingRight': '7%', 'paddingBottom': '3%', 'paddingTop': '3%'})
 ])
-
 
 #### Plotting function ####
 
@@ -504,7 +507,7 @@ def create_case_heatmap(case_array, case_array_std, date_list, state_list):
                             x=1,
                             y=1.007,  # paper 1
                             xanchor='right', yanchor='middle',
-                            text='✦: *Date of peak number of new cases within the state',
+                            text='✦: Date of peak number of new cases within the state',
                             font=dict(family='Arial', color='gray',
                                       size=15), showarrow=False))
     fig.update_layout(annotations=annotations)
