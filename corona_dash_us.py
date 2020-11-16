@@ -171,14 +171,14 @@ def get_phase_link_df(df_map):
 
     # state
     sr1 = soup.select('.g-name')
-    scrap_list1 = [i.text for i in sr1]
+    scrap_list1 = [i.text[:-2] for i in sr1]
 
     # link
     sr2 = soup.select('.g-link a', attrs={'href': re.compile('^http://')})
     scrap_list2 = [link.get('href') for link in sr2]
     link_list = [f'''[News Link]({l})''' for l in scrap_list2]
     df_link = pd.DataFrame(np.array([scrap_list1, link_list]).T, index=scrap_list1, columns=['state', 'link'])
-    df_link.drop(['District of Columbia', 'Puerto Rico'], inplace=True)
+    df_link.drop(['Washington, D.C.', 'Puerto Rico'], inplace=True)
     df_link = pd.merge(df_link, df_map, on='state')
     return df_link
 
