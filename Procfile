@@ -1,1 +1,1 @@
-web: gunicorn corona_dash_us:server
+web: gunicorn app:server
