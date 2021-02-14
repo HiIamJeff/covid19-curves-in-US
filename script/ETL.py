@@ -60,6 +60,7 @@ def data_process_avg(complete_df, pop_dict):
             complete_df[c + '_no_pop_value'] = complete_df[c]
     return complete_df
 
+
 def case_data_process(df_case_pop, order=False):
     if order: ## rank by higest cases date
         state_list = df_case_pop.idxmax().sort_values().index
@@ -81,15 +82,96 @@ def case_data_process(df_case_pop, order=False):
 
     return case_array, case_array_std, date_list, state_list
 
-
 ### Real map
 def make_df_map(df_case_pop):
-    df_map = pd.DataFrame(df_case_pop.iloc[-1])
-    df_map.columns = ['case']
-    df_map = df_map.reset_index()
+    df_case_pop2 = pd.DataFrame(df_case_pop.iloc[-1])
+    df_case_pop2.columns = ['case']
+    df_case_pop2 = df_case_pop2.reset_index()
+    return df_case_pop2
+
+
+def create_mask_dict():
+    from bs4 import BeautifulSoup
+    import requests
+    url = "https://www.nytimes.com/interactive/2020/us/states-reopen-map-coronavirus.html"
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text, 'lxml')
+    # mask
+    sr1 = soup.select('.g-masks , .g-name a')
+
+    state_list = []
+    mask_list = []
+    for i, n in enumerate(sr1):
+        if i % 2 == 0:
+            state_list.append(n.text[:-2])
+        else:
+            mask_list.append(n.text)
+
+    mask_list = [' '.join(w.title().split()[1:]) for w in mask_list] # remove excessive words, capitalize char
+    mask_dict = {s: m for s, m in zip(state_list, mask_list) if s not in ['Washington, D.C.', 'Puerto Rico']}
+    return mask_dict
+
+
+def df_map_ETL(df, df_map, df_case_pop, state_pop_dict):
+    # death data with most recent records (proccessed with 7-day average)
+    death_dict = moving_avg_df(ETL_df(df), death=True).iloc[-1].to_dict()
+    death_dict = {s: round(death_dict.get(s) / state_pop_dict.get(s) * 1000000, 3) for s in df_case_pop.columns}
+    mask_dict = create_mask_dict()
+
+    # abbreviate data for plotting function
+    import us
+    abbr_dict = us.states.mapping('name', 'abbr')
+
+    # pipeline
+    df_map['abbr'] = df_map['state'].map(abbr_dict)
+    df_map['mask'] = df_map['state'].map(mask_dict)
+    df_map['death'] = round(df_map['state'].map(death_dict).astype(float), 2)
+    df_map['case'] = round(df_map['case']).astype(int)
+    # for hoverinfo
+    df_map['text'] = (
+            '<I><b>' + df_map['state'].astype('str') + '</b></I><br>' + 'New Cases per 1M Resident: '
+            + df_map['case'].astype('str')
+            + '<br>' + 'New Deaths per 1M Resident: ' + df_map['death'].astype('str') + '<extra></extra>')
     return df_map
 
+## css select
+# state name and mask rule
+# .g-masks , .g-name a
+# state name, mask rule and link (but has other garbage, need to clean)
+# .g-masks , a
 
+
+def get_news_link_df(df_map):
+    from bs4 import BeautifulSoup
+    import requests
+    import re
+
+    url = "https://www.nytimes.com/interactive/2020/us/states-reopen-map-coronavirus.html"
+    res = requests.get(url)
+    soup = BeautifulSoup(res.text, 'lxml')
+
+    # state
+    sr1 = soup.select('.g-name')
+    scrap_list1 = [i.text[:-2] for i in sr1]
+
+    # link
+    sr2 = soup.select('.g-link a', attrs={'href': re.compile('^http://')})
+    scrap_list2 = [link.get('href') for link in sr2]
+    link_list = [f'''[News Link]({l})''' for l in scrap_list2]
+    df_link = pd.DataFrame(np.array([scrap_list1, link_list]).T, index=scrap_list1, columns=['state', 'link'])
+    df_link.drop(['Washington, D.C.', 'Puerto Rico'], inplace=True)
+    df_link = pd.merge(df_link, df_map, on='state')
+    return df_link
+
+### individual line
+def standardized_row(array):
+    return ((array.T - np.min(array.T, axis=0)) / np.ptp(array, axis=1)).T
+
+
+print('## ETL script loaded ##')
+
+
+## outdated
 # def get_phase_dict():
 #     from bs4 import BeautifulSoup
 #     import requests
@@ -116,59 +198,3 @@ def make_df_map(df_case_pop):
 #             continue
 #         phase_dict[i] = phase_n
 #     return phase_dict
-
-
-def df_map_ETL(df, df_map, df_case_pop, state_pop_dict):
-    # death data with most recent records (proccessed with 7-day average)
-    death_dict = moving_avg_df(ETL_df(df), death=True).iloc[-1].to_dict()
-    death_dict = {s: round(death_dict.get(s) / state_pop_dict.get(s) * 1000000, 3) for s in df_case_pop.columns}
-
-    # abbre data for plotting function
-    import us
-    abbr_dict = us.states.mapping('name', 'abbr')
-
-    # pipeline
-    df_map['abbr'] = df_map['state'].map(abbr_dict)
-    # df_map['phase'] = df_map['state'].map(phase_dict) #### fix for new website
-    # df_map['death'] = round(df_map['state'].map(death_dict), 2).astype(float)
-    df_map['death'] = round(df_map['state'].map(death_dict).astype(float), 2)  #### fix weird!!!
-    df_map['case'] = round(df_map['case']).astype(int)
-    # for hoverinfo
-    df_map['text'] = (
-            '<I><b>' + df_map['state'].astype('str') + '</b></I><br>' + 'New Cases per 1M Resident: '
-            + df_map['case'].astype('str')
-            + '<br>' + 'New Deaths per 1M Resident: ' + df_map['death'].astype('str') + '<extra></extra>')
-    return df_map
-
-
-def get_phase_link_df(df_map):
-    from bs4 import BeautifulSoup
-    import requests
-    import re
-
-    url = "https://www.nytimes.com/interactive/2020/us/states-reopen-map-coronavirus.html"
-    res = requests.get(url)
-    soup = BeautifulSoup(res.text, 'lxml')
-
-    # state
-    sr1 = soup.select('.g-name')
-    scrap_list1 = [i.text[:-2] for i in sr1]
-
-    # link
-    sr2 = soup.select('.g-link a', attrs={'href': re.compile('^http://')})
-    scrap_list2 = [link.get('href') for link in sr2]
-    link_list = [f'''[News Link]({l})''' for l in scrap_list2]
-    df_link = pd.DataFrame(np.array([scrap_list1, link_list]).T, index=scrap_list1, columns=['state', 'link'])
-    df_link.drop(['Washington, D.C.', 'Puerto Rico'], inplace=True)
-    df_link = pd.merge(df_link, df_map, on='state')
-    return df_link
-
-
-### individual line
-def standardized_row(array):
-    return ((array.T - np.min(array.T, axis=0)) / np.ptp(array, axis=1)).T
-
-print('## ETL script loaded ##')
-
-# if __name__ == '__main__':
-#     print('## ETL script loaded ##')
