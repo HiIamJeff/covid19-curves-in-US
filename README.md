@@ -1,7 +1,7 @@
 # Spotting the Curves in the US
 **A Better Overview of COVID-19 in Each State of the United States**
 
-<img src="https://github.com/HiIamJeff/covid19-curves-in-US/blob/script_update_branch/assets/web_example2.png"/>
+<img src="https://github.com/HiIamJeff/covid19-curves-in-US/blob/script_update_branch/assets/web_example.png"/>
 
 ## Purpose and Features
 To better understand COVID-19 in the US, this dashboard presents an overview of state-level data with complementary information. This dashboard aims to show individual trends within each state, extract timely state-level phase information and **provide a consistent and easy-to-read platform other than media outlets**.
