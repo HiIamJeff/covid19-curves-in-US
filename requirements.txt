@@ -22,4 +22,4 @@ numpy==1.18.1
 xlrd==1.2.0
 gunicorn==19.10.0
 #lxml==4.5.0
-lxml==4.6.3
+lxml==4.9.1
